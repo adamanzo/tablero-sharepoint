@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tablero Costos PO</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b0d12;
+      --panel: #111522;
+      --panel2: #0f1320;
+      --text: #e9eefc;
+      --muted: #a9b3cf;
+      --line: rgba(233,238,252,.10);
+      --accent: #7aa2ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: radial-gradient(1200px 600px at 30% -20%, rgba(122,162,255,.18), transparent 60%), var(--bg);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 18px 16px 28px;
+    }
+    header {
+      display:flex;
+      gap: 12px;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    h1 {
+      font-size: 18px;
+      margin: 0 0 4px 0;
+      letter-spacing: .2px;
+    }
+    .sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0;
+    }
+    .controls {
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    select, button {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 13px;
+      outline: none;
+    }
+    button {
+      cursor:pointer;
+    }
+    button:hover {
+      border-color: rgba(122,162,255,.45);
+    }
+    .grid {
+      display:grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 12px;
+    }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.03), transparent 70%), var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.22);
+      overflow: hidden;
+    }
+    .kpis {
+      grid-column: span 12;
+      display:grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .kpi {
+      background: rgba(255,255,255,.02);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 10px;
+    }
+    .kpi .t {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .kpi .v {
+      font-size: 16px;
+      font-weight: 650;
+      letter-spacing: .2px;
+    }
+    .kpi .s {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .col6 { grid-column: span 6; }
+    .col7 { grid-column: span 7; }
+    .col5 { grid-column: span 5; }
+    .col12 { grid-column: span 12; }
+    .title {
+      display:flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .title h2 {
+      font-size: 13px;
+      margin: 0;
+      color: var(--text);
+      letter-spacing: .2px;
+    }
+    .hint {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    canvas {
+      width: 100% !important;
+      height: 360px !important;
+    }
+    .table-wrap {
+      overflow:auto;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 820px;
+      font-size: 12px;
+    }
+    th, td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      white-space: nowrap;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      background: rgba(17,21,34,.95);
+      color: var(--muted);
+      font-weight: 600;
+    }
+    tr:hover td {
+      background: rgba(122,162,255,.06);
+    }
+    .pill {
+      display:inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+    @media (max-width: 980px) {
+      .kpis { grid-template-columns: repeat(2, 1fr); }
+      .col6, .col7, .col5 { grid-column: span 12; }
+      canvas { height: 320px !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Tablero Costos — Proyección Obra (PO)</h1>
+        <p class="sub">Versión HTML (sin build). Filtros interactivos y gráficos (Chart.js).</p>
+      </div>
+      <div class="controls">
+        <div>
+          <label for="selGrupo">Grupo</label><br/>
+          <select id="selGrupo">
+            <option value="ds49">DS49</option>
+            <option value="ds19priv">DS19/Priv</option>
+            <option value="all" selected>Todos</option>
+          </select>
+        </div>
+        <div>
+          <label for="selObra">Obra</label><br/>
+          <select id="selObra">
+            <option value="__all__" selected>Todas</option>
+          </select>
+        </div>
+        <button id="btnReset" type="button">Reset</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="card kpis" id="kpis"></div>
+
+      <div class="card col5">
+        <div class="title">
+          <h2>Composición: Costo Directo vs GG+IVA</h2>
+          <div class="hint">clic en la leyenda para ocultar/mostrar</div>
+        </div>
+        <canvas id="donut"></canvas>
+      </div>
+
+      <div class="card col7">
+        <div class="title">
+          <h2>Etapas — Total (PO)</h2>
+          <div class="hint"><span class="pill" id="pillEtapas">filtro: todos</span></div>
+        </div>
+        <canvas id="barEtapas"></canvas>
+      </div>
+
+      <div class="card col6">
+        <div class="title">
+          <h2>Recursos — Total (PO)</h2>
+          <div class="hint"><span class="pill" id="pillRec">filtro: todos</span></div>
+        </div>
+        <canvas id="barRecursos"></canvas>
+      </div>
+
+      <div class="card col6">
+        <div class="title">
+          <h2>Obras (detalle)</h2>
+          <div class="hint">clic en una fila para fijar la obra</div>
+        </div>
+        <div class="table-wrap">
+          <table id="tblObras">
+            <thead>
+              <tr>
+                <th>Obra</th>
+                <th>Tipo</th>
+                <th>PPTO</th>
+                <th>PO</th>
+                <th>CD</th>
+                <th>Δ PO-PPTO</th>
+                <th>GG</th>
+                <th>IVA</th>
+                <th>m²</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // Dataset extraído desde tu JSX
+  const DATA = {
+  kpi: {
+    ds49_n: 12, ds19priv_n: 6,
+    ds49_avg_cd: 1017.2,  ds49_avg_tot: 1258.8,
+    ds49_med_tot: 1252.5, ds49_min_tot: 1079.6, ds49_max_tot: 1503.0,
+    ds19_avg_cd: 1351.2,  ds19_avg_tot: 1596.2, ds19_avg_m2: 22.54,
+    priv_tot_viv: 1818.9, priv_tot_m2: 28.38,
+    ds49_gg: 11.8, ds19_gg: 5.0,
+  },
+
+  etapa: [
+    { e:"Obra Gruesa",   d49cd:312.2, d49tot:390.8, d19cd:339.4, d19tot:404.1, d19m2:5.83 },
+    { e:"GG de Obra",    d49cd:261.2, d49tot:326.9, d19cd:315.1, d19tot:374.8, d19m2:5.42 },
+    { e:"Terminaciones", d49cd:171.4, d49tot:214.5, d19cd:356.4, d19tot:423.8, d19m2:6.08 },
+    { e:"Urbanización",  d49cd:106.1, d49tot:132.8, d19cd:116.4, d19tot:138.3, d19m2:1.97 },
+    { e:"Instalaciones", d49cd: 81.2, d49tot:101.7, d19cd:142.2, d19tot:169.3, d19m2:2.43 },
+    { e:"Obras Prelim.", d49cd: 49.8, d49tot: 62.3, d19cd: 51.3, d19tot: 60.9, d19m2:0.88 },
+    { e:"Entrega",       d49cd: 27.6, d49tot: 34.6, d19cd: 40.3, d19tot: 48.0, d19m2:0.69 },
+    { e:"Áreas Verdes",  d49cd: 14.1, d49tot: 17.6, d19cd: 23.4, d19tot: 27.8, d19m2:0.40 },
+  ],
+
+  recurso: [
+    { r:"Mano de Obra",   d49cd:359.2, d49tot:449.4, d19cd:364.8, d19tot:433.4, d19m2:6.26 },
+    { r:"Materiales",     d49cd:318.1, d49tot:398.1, d19cd:389.7, d19tot:463.7, d19m2:6.67 },
+    { r:"Subcontratos",   d49cd:234.6, d49tot:293.6, d19cd:490.5, d19tot:584.2, d19m2:8.39 },
+    { r:"Maq. y Equipos", d49cd: 91.7, d49tot:114.7, d19cd:115.2, d19tot:137.0, d19m2:1.97 },
+    { r:"Otros",          d49cd: 20.1, d49tot: 25.3, d19cd: 24.2, d19tot: 28.8, d19m2:0.42 },
+  ],
+
+  rango: [
+    { rango:"< 120 viv",   ppto:1190.1, po:1324.9, n:4 },
+    { rango:"120–200 viv", ppto:1198.8, po:1343.4, n:2 },
+    { rango:"> 500 viv",   ppto:1064.8, po:1214.9, n:1 },
+  ],
+
+  obras: [
+    { n:"PLV3",  t:"DS49",    viv:430, ppto:1069.3, po:1079.6, cd:871.4,  dpct:1.0,  dabs:10.3,  gg:11.8, iva:12.1 },
+    { n:"PLV2",  t:"DS49",    viv:320, ppto:1118.3, po:1148.8, cd:931.5,  dpct:2.7,  dabs:30.6,  gg:11.8, iva:11.5 },
+    { n:"PLV1",  t:"DS49",    viv:320, ppto:1132.9, po:1169.8, cd:945.6,  dpct:3.3,  dabs:36.9,  gg:11.8, iva:11.9 },
+    { n:"CDG",   t:"DS49",    viv:504, ppto:1064.8, po:1214.9, cd:982.1,  dpct:14.1, dabs:150.1, gg:11.8, iva:11.9 },
+    { n:"VT",    t:"DS49",    viv:160, ppto:1059.7, po:1233.4, cd:996.9,  dpct:16.4, dabs:173.7, gg:11.8, iva:11.9 },
+    { n:"LP",    t:"DS49",    viv:112, ppto:1249.6, po:1252.1, cd:1015.7, dpct:0.2,  dabs:2.6,   gg:11.8, iva:11.5 },
+    { n:"ADE",   t:"DS49",    viv:320, ppto:1052.7, po:1252.8, cd:1017.9, dpct:19.0, dabs:200.1, gg:11.8, iva:11.3 },
+    { n:"AGM",   t:"DS49",    viv:360, ppto:1128.7, po:1253.4, cd:1006.1, dpct:11.0, dabs:124.6, gg:11.8, iva:12.8 },
+    { n:"VM",    t:"DS49",    viv:108, ppto:1238.3, po:1257.4, cd:1002.7, dpct:1.5,  dabs:19.1,  gg:11.8, iva:13.6 },
+    { n:"LG",    t:"DS49",    viv:120, ppto:1111.6, po:1287.1, cd:1041.1, dpct:15.8, dabs:175.5, gg:11.8, iva:11.8 },
+    { n:"DM",    t:"DS49",    viv:156, ppto:1337.9, po:1453.5, cd:1181.9, dpct:8.6,  dabs:115.5, gg:11.8, iva:11.2 },
+    { n:"MK",    t:"DS49",    viv:96,  ppto:1160.9, po:1503.0, cd:1213.9, dpct:29.5, dabs:342.1, gg:11.8, iva:12.0 },
+    { n:"JDV",   t:"DS19",    viv:250, ppto:1411.8, po:1474.3, cd:1259.7, dpct:4.4,  dabs:62.5,  gg:5.0,  iva:12.0, pm2p:20.21, pm2o:21.11 },
+    { n:"AMAPU", t:"DS19",    viv:168, ppto:1477.8, po:1499.4, cd:1273.9, dpct:1.5,  dabs:21.5,  gg:5.0,  iva:12.7, pm2p:21.45, pm2o:21.76 },
+    { n:"BM",    t:"DS19",    viv:192, ppto:1501.3, po:1540.5, cd:1291.4, dpct:2.6,  dabs:39.1,  gg:5.0,  iva:14.3, pm2p:21.89, pm2o:22.47 },
+    { n:"VP",    t:"DS19",    viv:264, ppto:1532.1, po:1589.6, cd:1332.2, dpct:3.8,  dabs:57.5,  gg:5.0,  iva:14.3, pm2p:19.62, pm2o:20.36 },
+    { n:"PB",    t:"PRIVADO", viv:160, ppto:1895.6, po:1818.9, cd:1528.1, dpct:-4.0, dabs:-76.8, gg:5.0,  iva:14.0, pm2p:29.58, pm2o:28.38 },
+    { n:"CQ",    t:"DS19",    viv:128, ppto:1413.8, po:1877.1, cd:1598.6, dpct:32.8, dabs:463.3, gg:5.0,  iva:12.4, pm2p:20.35, pm2o:27.01 },
+  ],
+
+  // Stacked por proyecto — Costo Directo _PO por etapa / vivienda
+  s49cd: [
+    { n:"PLV3", viv:430, "Prelim.":27.0,"Obra Gruesa":257.8,"Instal.":74.1,"Termin.":173.5,"Urbaniz.":73.8,"Áreas V.":9.9,"Entrega":35.1,"GG Obra":253.3 },
+    { n:"PLV2", viv:320, "Prelim.":31.4,"Obra Gruesa":331.5,"Instal.":78.1,"Termin.":187.6,"Urbaniz.":85.5,"Áreas V.":7.3,"Entrega":21.4,"GG Obra":240.2 },
+    { n:"PLV1", viv:320, "Prelim.":26.0,"Obra Gruesa":271.6,"Instal.":68.5,"Termin.":196.6,"Urbaniz.":84.2,"Áreas V.":11.1,"Entrega":11.8,"GG Obra":319.0 },
+    { n:"CDG",  viv:504, "Prelim.":61.5,"Obra Gruesa":355.8,"Instal.":74.0,"Termin.":178.5,"Urbaniz.":122.2,"Áreas V.":24.7,"Entrega":23.8,"GG Obra":148.2 },
+    { n:"VT",   viv:160, "Prelim.":35.5,"Obra Gruesa":338.9,"Instal.":80.7,"Termin.":166.9,"Urbaniz.":98.7,"Áreas V.":7.7,"Entrega":35.3,"GG Obra":234.1 },
+    { n:"LP",   viv:112, "Prelim.":37.8,"Obra Gruesa":325.4,"Instal.":78.6,"Termin.":159.1,"Urbaniz.":123.2,"Áreas V.":15.7,"Entrega":19.8,"GG Obra":252.0 },
+    { n:"VM",   viv:108, "Prelim.":55.7,"Obra Gruesa":298.6,"Instal.":77.5,"Termin.":152.2,"Urbaniz.":109.0,"Áreas V.":22.8,"Entrega":24.9,"GG Obra":261.0 },
+    { n:"ADE",  viv:320, "Prelim.":72.8,"Obra Gruesa":284.1,"Instal.":79.4,"Termin.":183.6,"Urbaniz.":82.7,"Áreas V.":13.6,"Entrega":69.5,"GG Obra":233.8 },
+    { n:"AGM",  viv:360, "Prelim.":41.3,"Obra Gruesa":362.3,"Instal.":91.6,"Termin.":171.1,"Urbaniz.":144.9,"Áreas V.":17.6,"Entrega":9.5,"GG Obra":195.2 },
+    { n:"LG",   viv:120, "Prelim.":41.6,"Obra Gruesa":286.8,"Instal.":85.8,"Termin.":121.7,"Urbaniz.":87.2,"Áreas V.":11.9,"Entrega":37.6,"GG Obra":368.0 },
+    { n:"DM",   viv:156, "Prelim.":31.2,"Obra Gruesa":355.2,"Instal.":89.1,"Termin.":220.5,"Urbaniz.":149.9,"Áreas V.":13.6,"Entrega":15.1,"GG Obra":325.7 },
+    { n:"MK",   viv:96,  "Prelim.":138.0,"Obra Gruesa":307.5,"Instal.":105.4,"Termin.":165.9,"Urbaniz.":120.3,"Áreas V.":13.8,"Entrega":30.6,"GG Obra":337.1 },
+  ],
+  // Stacked — Costo Total PO por etapa / vivienda (CD × factor GG+IVA)
+  s49tot: [
+    { n:"PLV3", viv:430, "Prelim.":33.8,"Obra Gruesa":322.7,"Instal.":92.8,"Termin.":217.3,"Urbaniz.":92.4,"Áreas V.":12.4,"Entrega":43.9,"GG Obra":317.2 },
+    { n:"PLV2", viv:320, "Prelim.":39.2,"Obra Gruesa":413.8,"Instal.":97.5,"Termin.":234.2,"Urbaniz.":106.7,"Áreas V.":9.1,"Entrega":26.7,"GG Obra":299.8 },
+    { n:"PLV1", viv:320, "Prelim.":32.5,"Obra Gruesa":339.6,"Instal.":85.6,"Termin.":245.8,"Urbaniz.":105.2,"Áreas V.":13.9,"Entrega":14.8,"GG Obra":398.8 },
+    { n:"CDG",  viv:504, "Prelim.":76.9,"Obra Gruesa":444.9,"Instal.":92.5,"Termin.":223.2,"Urbaniz.":152.8,"Áreas V.":30.9,"Entrega":29.8,"GG Obra":185.3 },
+    { n:"VT",   viv:160, "Prelim.":44.5,"Obra Gruesa":424.2,"Instal.":101.0,"Termin.":208.9,"Urbaniz.":123.5,"Áreas V.":9.6,"Entrega":44.2,"GG Obra":292.9 },
+    { n:"LP",   viv:112, "Prelim.":47.1,"Obra Gruesa":406.0,"Instal.":98.1,"Termin.":198.7,"Urbaniz.":153.8,"Áreas V.":19.6,"Entrega":24.7,"GG Obra":314.6 },
+    { n:"VM",   viv:108, "Prelim.":70.8,"Obra Gruesa":379.3,"Instal.":98.4,"Termin.":193.3,"Urbaniz.":138.4,"Áreas V.":28.9,"Entrega":31.6,"GG Obra":331.5 },
+    { n:"ADE",  viv:320, "Prelim.":90.3,"Obra Gruesa":353.0,"Instal.":98.6,"Termin.":228.5,"Urbaniz.":102.9,"Áreas V.":16.9,"Entrega":86.4,"GG Obra":291.0 },
+    { n:"AGM",  viv:360, "Prelim.":52.1,"Obra Gruesa":456.7,"Instal.":115.4,"Termin.":215.8,"Urbaniz.":182.6,"Áreas V.":22.2,"Entrega":11.9,"GG Obra":246.2 },
+    { n:"LG",   viv:120, "Prelim.":52.0,"Obra Gruesa":358.5,"Instal.":107.2,"Termin.":152.1,"Urbaniz.":109.0,"Áreas V.":14.9,"Entrega":47.0,"GG Obra":460.3 },
+    { n:"DM",   viv:156, "Prelim.":38.8,"Obra Gruesa":442.5,"Instal.":111.0,"Termin.":275.2,"Urbaniz.":186.8,"Áreas V.":16.9,"Entrega":18.9,"GG Obra":405.9 },
+    { n:"MK",   viv:96,  "Prelim.":172.8,"Obra Gruesa":384.8,"Instal.":131.8,"Termin.":207.5,"Urbaniz.":150.4,"Áreas V.":17.3,"Entrega":38.2,"GG Obra":421.5 },
+  ],
+  // DS19+Privado — Costo Total PO por etapa
+  s19tot: [
+    { n:"JDV",   t:"DS19",    "Prelim.":71.7,"Obra Gruesa":349.0,"Instal.":150.5,"Termin.":397.1,"Urbaniz.":189.9,"Áreas V.":47.1,"Entrega":21.9,"GG Obra":215.1 },
+    { n:"AMAPU", t:"DS19",    "Prelim.":51.1,"Obra Gruesa":357.3,"Instal.":154.3,"Termin.":464.1,"Urbaniz.":139.1,"Áreas V.":26.3,"Entrega":17.1,"GG Obra":294.9 },
+    { n:"BM",    t:"DS19",    "Prelim.":55.7,"Obra Gruesa":406.0,"Instal.":128.8,"Termin.":398.7,"Urbaniz.":137.2,"Áreas V.":39.3,"Entrega":52.4,"GG Obra":323.5 },
+    { n:"VP",    t:"DS19",    "Prelim.":29.9,"Obra Gruesa":407.5,"Instal.":208.8,"Termin.":433.9,"Urbaniz.":136.7,"Áreas V.":10.5,"Entrega":72.2,"GG Obra":307.5 },
+    { n:"PB",    t:"PRIVADO", "Prelim.":49.1,"Obra Gruesa":527.1,"Instal.":228.3,"Termin.":381.3,"Urbaniz.":74.6,"Áreas V.":17.3,"Entrega":74.0,"GG Obra":476.9 },
+    { n:"CQ",    t:"DS19",    "Prelim.":58.8,"Obra Gruesa":394.1,"Instal.":150.6,"Termin.":486.7,"Urbaniz.":157.7,"Áreas V.":27.1,"Entrega":52.2,"GG Obra":656.3 },
+  ],
+  s19m2: [
+    { n:"JDV",   "Prelim.":1.03,"Obra Gruesa":5.00,"Instal.":2.16,"Termin.":5.69,"Urbaniz.":2.72,"Áreas V.":0.67,"Entrega":0.31,"GG Obra":3.08 },
+    { n:"AMAPU", "Prelim.":0.74,"Obra Gruesa":5.19,"Instal.":2.24,"Termin.":6.74,"Urbaniz.":2.02,"Áreas V.":0.38,"Entrega":0.25,"GG Obra":4.29 },
+    { n:"BM",    "Prelim.":0.81,"Obra Gruesa":5.92,"Instal.":1.88,"Termin.":5.82,"Urbaniz.":2.00,"Áreas V.":0.57,"Entrega":0.76,"GG Obra":4.73 },
+    { n:"VP",    "Prelim.":0.38,"Obra Gruesa":5.21,"Instal.":2.67,"Termin.":5.55,"Urbaniz.":1.75,"Áreas V.":0.13,"Entrega":0.92,"GG Obra":3.93 },
+    { n:"PB",    "Prelim.":0.77,"Obra Gruesa":8.23,"Instal.":3.56,"Termin.":5.95,"Urbaniz.":1.16,"Áreas V.":0.27,"Entrega":1.15,"GG Obra":7.45 },
+    { n:"CQ",    "Prelim.":0.85,"Obra Gruesa":5.67,"Instal.":2.17,"Termin.":7.00,"Urbaniz.":2.27,"Áreas V.":0.39,"Entrega":0.75,"GG Obra":9.44 },
+  ],
+};
+
+  const fmt = (x, d=1) => {
+    if (x === null || x === undefined || Number.isNaN(x)) return "—";
+    const n = Number(x);
+    return n.toLocaleString("es-CL", { minimumFractionDigits: d, maximumFractionDigits: d });
+  };
+  const fmt0 = (x) => fmt(x, 0);
+  const pct = (x, d=1) => {
+    if (x === null || x === undefined || Number.isNaN(x)) return "—";
+    return (Number(x)).toLocaleString("es-CL", { minimumFractionDigits: d, maximumFractionDigits: d }) + "%";
+  };
+
+  // --- Helpers de filtrado ---
+  function getTipoByNombre(n) {
+    // Convención según tu data: ds49 y ds19priv están marcados en DATA.obras (t:"DS49" etc.)
+    // Si no existe t, inferimos por prefijo 'PLV' etc (mejor: usa el campo t si está).
+    return null;
+  }
+
+  function filtrarObras(grupo) {
+    const all = (DATA.obras || []).slice();
+    if (grupo === "all") return all;
+    return all.filter(o => (o.t || "").toLowerCase() === grupo);
+  }
+
+  function filtrarPorObra(lista, nombreObra) {
+    if (!nombreObra || nombreObra === "__all__") return lista;
+    return lista.filter(o => o.n === nombreObra);
+  }
+
+  // --- Cálculos básicos ---
+  function calcAgg(obras) {
+    // En tu data por obra: pp (presupuesto), po (proyección obra), cd (costo directo), gg, iva, m2
+    const sum = { pp:0, po:0, cd:0, delta:0, m2:0 };
+    let gg = null, iva = null; // promedios ponderados por CD
+    let w = 0;
+
+    for (const o of obras) {
+      const pp = Number(o.pp ?? 0);
+      const po = Number(o.po ?? 0);
+      const cd = Number(o.cd ?? 0);
+      const m2 = Number(o.m2 ?? 0);
+
+      sum.pp += pp; sum.po += po; sum.cd += cd; sum.delta += (po - pp); sum.m2 += m2;
+
+      const ogg = Number(o.gg ?? NaN);
+      const oiva = Number(o.iva ?? NaN);
+      if (!Number.isNaN(ogg) && cd > 0) { gg = (gg ?? 0) + ogg * cd; }
+      if (!Number.isNaN(oiva) && cd > 0) { iva = (iva ?? 0) + oiva * cd; }
+      if (cd > 0) w += cd;
+    }
+    if (w > 0) {
+      gg = (gg ?? 0) / w;
+      iva = (iva ?? 0) / w;
+    } else {
+      gg = null; iva = null;
+    }
+
+    const ggiva = Math.max(0, sum.po - sum.cd); // aproximación: Total - Directo
+    return { ...sum, gg, iva, ggiva };
+  }
+
+  function calcEtapas(obrasSel) {
+    // DATA.etapa tiene claves: d49cd/d49tot/d19cd/d19tot/d19m2
+    // Aquí reconstruimos una lista "Total" según grupo a partir del dataset de etapas.
+    return DATA.etapa || [];
+  }
+
+  function calcRecursos(obrasSel) {
+    return DATA.recurso || [];
+  }
+
+  // --- Chart.js plugin: texto al centro en donut ---
+  const centerText = {
+    id: 'centerText',
+    afterDraw(chart, args, opts) {
+      if (!opts || !opts.textLines) return;
+      const { ctx } = chart;
+      const meta = chart.getDatasetMeta(0);
+      if (!meta || !meta.data || !meta.data[0]) return;
+      const x = meta.data[0].x;
+      const y = meta.data[0].y;
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = opts.color || '#e9eefc';
+
+      const lines = opts.textLines;
+      const font1 = opts.font1 || '600 16px ui-sans-serif, system-ui';
+      const font2 = opts.font2 || '400 12px ui-sans-serif, system-ui';
+
+      // Primera línea
+      ctx.font = font1;
+      ctx.fillText(lines[0] || '', x, y - 8);
+
+      // Segunda línea
+      ctx.font = font2;
+      ctx.fillStyle = opts.muted || 'rgba(233,238,252,.70)';
+      ctx.fillText(lines[1] || '', x, y + 12);
+
+      ctx.restore();
+    }
+  };
+
+  Chart.register(centerText);
+
+  let donutChart = null;
+  let etapasChart = null;
+  let recursosChart = null;
+
+  const selGrupo = document.getElementById('selGrupo');
+  const selObra = document.getElementById('selObra');
+  const btnReset = document.getElementById('btnReset');
+
+  const pillEtapas = document.getElementById('pillEtapas');
+  const pillRec = document.getElementById('pillRec');
+
+  function buildObraOptions(obrasFiltradas) {
+    const names = Array.from(new Set(obrasFiltradas.map(o => o.n))).sort((a,b)=>a.localeCompare(b,'es'));
+    selObra.innerHTML = '<option value="__all__" selected>Todas</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
+  }
+
+  function renderKpis(agg, count) {
+    const kpis = document.getElementById('kpis');
+    const cards = [
+      { t: 'Obras', v: fmt0(count), s: 'cantidad en filtro' },
+      { t: 'PPTO (UF/viv)', v: fmt(agg.pp, 1), s: 'suma aproximada' },
+      { t: 'PO (UF/viv)', v: fmt(agg.po, 1), s: 'suma aproximada' },
+      { t: 'Δ PO-PPTO', v: fmt(agg.delta, 1), s: 'positivo = sobre' },
+      { t: 'Costo Directo', v: fmt(agg.cd, 1), s: 'suma' },
+      { t: 'GG (prom.)', v: agg.gg == null ? '—' : pct(agg.gg, 1), s: 'ponderado por CD' },
+      { t: 'IVA (prom.)', v: agg.iva == null ? '—' : pct(agg.iva, 1), s: 'ponderado por CD' },
+      { t: 'm² (suma)', v: fmt(agg.m2, 0), s: 'aprox.' },
+    ];
+    kpis.innerHTML = cards.map(c => `
+      <div class="kpi">
+        <div class="t">${c.t}</div>
+        <div class="v">${c.v}</div>
+        <div class="s">${c.s}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderTable(obras) {
+    const tbody = document.querySelector('#tblObras tbody');
+    tbody.innerHTML = '';
+    for (const o of obras) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${o.n}</td>
+        <td>${(o.t || '').toUpperCase()}</td>
+        <td>${fmt(o.pp, 1)}</td>
+        <td>${fmt(o.po, 1)}</td>
+        <td>${fmt(o.cd, 1)}</td>
+        <td>${fmt((Number(o.po||0)-Number(o.pp||0)), 1)}</td>
+        <td>${o.gg != null ? pct(o.gg, 1) : '—'}</td>
+        <td>${o.iva != null ? pct(o.iva, 1) : '—'}</td>
+        <td>${fmt(o.m2, 0)}</td>
+      `;
+      tr.style.cursor = "pointer";
+      tr.addEventListener('click', () => {
+        selObra.value = o.n;
+        update();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+      tbody.appendChild(tr);
+    }
+  }
+
+  function renderDonut(agg) {
+    const direct = agg.cd;
+    const other = agg.ggiva;
+    const total = agg.po;
+
+    const ctx = document.getElementById('donut');
+
+    const data = {
+      labels: ['Costo Directo', 'GG + IVA (aprox)'],
+      datasets: [{
+        data: [direct, other],
+        borderWidth: 1,
+        borderColor: 'rgba(233,238,252,.18)',
+        hoverOffset: 6,
+      }]
+    };
+
+    const options = {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '68%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: 'rgba(233,238,252,.75)' }
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.label}: ${fmt(ctx.raw, 1)}`
+          }
+        },
+        centerText: {
+          textLines: [ `Total: ${fmt(total, 1)}`, `Directo: ${fmt(direct, 1)}` ],
+          color: '#e9eefc',
+          muted: 'rgba(233,238,252,.70)'
+        }
+      }
+    };
+
+    if (donutChart) donutChart.destroy();
+    donutChart = new Chart(ctx, { type: 'doughnut', data, options });
+  }
+
+  function renderEtapas(grupo) {
+    const rows = DATA.etapa || [];
+    let labels = rows.map(r => r.e);
+    let values = rows.map(r => {
+      if (grupo === 'ds49') return Number(r.d49tot ?? 0);
+      if (grupo === 'ds19priv') return Number(r.d19tot ?? 0);
+      // all: aproximación: sumamos ambas
+      return Number(r.d49tot ?? 0) + Number(r.d19tot ?? 0);
+    });
+
+    const ctx = document.getElementById('barEtapas');
+
+    const data = {
+      labels,
+      datasets: [{
+        label: 'Total (UF/viv)',
+        data: values,
+        borderWidth: 1,
+        borderColor: 'rgba(233,238,252,.18)',
+      }]
+    };
+
+    const options = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: 'rgba(233,238,252,.75)' } },
+        tooltip: {
+          callbacks: {
+            label: (c) => `Total: ${fmt(c.raw, 1)}`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: 'rgba(233,238,252,.65)' }, grid: { color: 'rgba(233,238,252,.06)' } },
+        y: { ticks: { color: 'rgba(233,238,252,.65)' }, grid: { color: 'rgba(233,238,252,.06)' } }
+      }
+    };
+
+    if (etapasChart) etapasChart.destroy();
+    etapasChart = new Chart(ctx, { type: 'bar', data, options });
+  }
+
+  function renderRecursos(grupo) {
+    const rows = DATA.recurso || [];
+    let labels = rows.map(r => r.r);
+    let values = rows.map(r => {
+      if (grupo === 'ds49') return Number(r.d49tot ?? 0);
+      if (grupo === 'ds19priv') return Number(r.d19tot ?? 0);
+      return Number(r.d49tot ?? 0) + Number(r.d19tot ?? 0);
+    });
+
+    const ctx = document.getElementById('barRecursos');
+
+    const data = {
+      labels,
+      datasets: [{
+        label: 'Total (UF/viv)',
+        data: values,
+        borderWidth: 1,
+        borderColor: 'rgba(233,238,252,.18)',
+      }]
+    };
+
+    const options = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: 'rgba(233,238,252,.75)' } },
+        tooltip: {
+          callbacks: {
+            label: (c) => `Total: ${fmt(c.raw, 1)}`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: 'rgba(233,238,252,.65)' }, grid: { color: 'rgba(233,238,252,.06)' } },
+        y: { ticks: { color: 'rgba(233,238,252,.65)' }, grid: { color: 'rgba(233,238,252,.06)' } }
+      }
+    };
+
+    if (recursosChart) recursosChart.destroy();
+    recursosChart = new Chart(ctx, { type: 'bar', data, options });
+  }
+
+  function update() {
+    const grupo = selGrupo.value;
+    const obrasGrupo = filtrarObras(grupo);
+    const obrasSel = filtrarPorObra(obrasGrupo, selObra.value);
+
+    // repoblar selector de obras solo cuando cambia grupo
+    // (para no perder selección manual)
+    // Esto lo maneja onChange de grupo.
+
+    const agg = calcAgg(obrasSel);
+    renderKpis(agg, obrasSel.length);
+    renderDonut(agg);
+
+    pillEtapas.textContent = `filtro: ${grupo}`;
+    pillRec.textContent = `filtro: ${grupo}`;
+
+    renderEtapas(grupo);
+    renderRecursos(grupo);
+
+    renderTable(obrasGrupo); // tabla muestra el set del grupo (no el filtro obra)
+  }
+
+  selGrupo.addEventListener('change', () => {
+    buildObraOptions(filtrarObras(selGrupo.value));
+    selObra.value = "__all__";
+    update();
+  });
+  selObra.addEventListener('change', update);
+  btnReset.addEventListener('click', () => {
+    selGrupo.value = "all";
+    buildObraOptions(filtrarObras("all"));
+    selObra.value = "__all__";
+    update();
+  });
+
+  // init
+  buildObraOptions(filtrarObras("all"));
+  update();
+</script>
+</body>
+</html>
